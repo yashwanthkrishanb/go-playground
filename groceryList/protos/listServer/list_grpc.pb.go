@@ -25,7 +25,7 @@ type ListServiceClient interface {
 	FindListItem(ctx context.Context, in *ItemReq, opts ...grpc.CallOption) (*Item, error)
 	InsertListItem(ctx context.Context, in *Item, opts ...grpc.CallOption) (*InsertResponse, error)
 	DeleteListItem(ctx context.Context, in *ItemReq, opts ...grpc.CallOption) (*DeleteResponse, error)
-	// rpc getList(Empty)returns ( stream Item){}
+	GetList(ctx context.Context, in *Empty, opts ...grpc.CallOption) (ListService_GetListClient, error)
 	UpdateListItem(ctx context.Context, in *UpdateReq, opts ...grpc.CallOption) (*Item, error)
 }
 
@@ -64,6 +64,38 @@ func (c *listServiceClient) DeleteListItem(ctx context.Context, in *ItemReq, opt
 	return out, nil
 }
 
+func (c *listServiceClient) GetList(ctx context.Context, in *Empty, opts ...grpc.CallOption) (ListService_GetListClient, error) {
+	stream, err := c.cc.NewStream(ctx, &ListService_ServiceDesc.Streams[0], "/ListService/getList", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &listServiceGetListClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type ListService_GetListClient interface {
+	Recv() (*Item, error)
+	grpc.ClientStream
+}
+
+type listServiceGetListClient struct {
+	grpc.ClientStream
+}
+
+func (x *listServiceGetListClient) Recv() (*Item, error) {
+	m := new(Item)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 func (c *listServiceClient) UpdateListItem(ctx context.Context, in *UpdateReq, opts ...grpc.CallOption) (*Item, error) {
 	out := new(Item)
 	err := c.cc.Invoke(ctx, "/ListService/updateListItem", in, out, opts...)
@@ -80,7 +112,7 @@ type ListServiceServer interface {
 	FindListItem(context.Context, *ItemReq) (*Item, error)
 	InsertListItem(context.Context, *Item) (*InsertResponse, error)
 	DeleteListItem(context.Context, *ItemReq) (*DeleteResponse, error)
-	// rpc getList(Empty)returns ( stream Item){}
+	GetList(*Empty, ListService_GetListServer) error
 	UpdateListItem(context.Context, *UpdateReq) (*Item, error)
 	mustEmbedUnimplementedListServiceServer()
 }
@@ -97,6 +129,9 @@ func (UnimplementedListServiceServer) InsertListItem(context.Context, *Item) (*I
 }
 func (UnimplementedListServiceServer) DeleteListItem(context.Context, *ItemReq) (*DeleteResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteListItem not implemented")
+}
+func (UnimplementedListServiceServer) GetList(*Empty, ListService_GetListServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetList not implemented")
 }
 func (UnimplementedListServiceServer) UpdateListItem(context.Context, *UpdateReq) (*Item, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateListItem not implemented")
@@ -168,6 +203,27 @@ func _ListService_DeleteListItem_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ListService_GetList_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(Empty)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ListServiceServer).GetList(m, &listServiceGetListServer{stream})
+}
+
+type ListService_GetListServer interface {
+	Send(*Item) error
+	grpc.ServerStream
+}
+
+type listServiceGetListServer struct {
+	grpc.ServerStream
+}
+
+func (x *listServiceGetListServer) Send(m *Item) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 func _ListService_UpdateListItem_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UpdateReq)
 	if err := dec(in); err != nil {
@@ -210,6 +266,12 @@ var ListService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ListService_UpdateListItem_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "getList",
+			Handler:       _ListService_GetList_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "list.proto",
 }

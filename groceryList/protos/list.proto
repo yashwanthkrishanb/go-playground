@@ -33,6 +33,6 @@ service ListService{
     rpc findListItem(ItemReq) returns (Item){}
     rpc insertListItem(Item) returns (insertResponse){} 
     rpc deleteListItem(ItemReq) returns (DeleteResponse){}
-    // rpc getList(Empty)returns ( stream Item){}
+    rpc getList(Empty)returns ( stream Item){}
     rpc updateListItem(UpdateReq) returns (Item){}
 }

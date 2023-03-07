@@ -29,9 +29,9 @@ func NewItemRepository() itemRepo {
 
 func (repo *itemRepo) CreateItem(item string) (bool, error) {
 	row := models.Item{Name: item}
-	err := repo.db.Create(&row)
-	if err != nil {
-		return false, fmt.Errorf("Failed to insert")
+	res := repo.db.Create(&row)
+	if res.RowsAffected == 0 {
+		return false, fmt.Errorf("failed to insert")
 	}
 	return true, nil
 }
@@ -40,16 +40,16 @@ func (repo *itemRepo) DeleteItem(item string) (bool, error) {
 	row := models.Item{Name: item}
 	res := repo.db.Where("name = ?", item).Delete(&row)
 	if res.RowsAffected == 0 {
-		return false, fmt.Errorf("Failed to Delete")
+		return false, fmt.Errorf("failed to delete")
 	}
 	return true, nil
 }
 
 func (repo *itemRepo) UpdateItem(item string) (bool, error) {
 	row := models.Item{Name: item}
-	err := repo.db.Find(row)
-	if err != nil {
-		return false, fmt.Errorf("Not Found")
+	res := repo.db.Find(row)
+	if res.RowsAffected == 0 {
+		return false, fmt.Errorf("not found")
 	}
 	repo.db.Save(&row)
 	repo.db.Model(&row).Update("name", item)
@@ -60,4 +60,8 @@ func (repo *itemRepo) GetItem(item string) *models.Item {
 	row := models.Item{Name: item}
 	repo.db.Where("name = ?", item).First(row)
 	return &row
+}
+
+func (repo *itemRepo) GetList(list *[]models.Item) {
+	repo.db.Find(list)
 }

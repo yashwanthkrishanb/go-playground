@@ -3,6 +3,7 @@ package internals
 import (
 	"context"
 	"fmt"
+	"grocerylist/models"
 	ls "grocerylist/protos/listserver"
 	itemRepo "grocerylist/repository"
 	"log"
@@ -10,37 +11,30 @@ import (
 
 type Server struct {
 	ls.UnimplementedListServiceServer
-	list []ls.Item
 }
 
 func (s *Server) InsertListItem(ctx context.Context, in *ls.Item) (*ls.InsertResponse, error) {
 	if in.Item == "" {
-		return &ls.InsertResponse{Error: "Empty Item", Status: "error"}, nil
+		return &ls.InsertResponse{Error: "Empty Item", Status: "error"}, fmt.Errorf("empty item passed")
 	}
-	s.list = append(s.list, *in)
 	repo := itemRepo.NewItemRepository()
 	status, err := repo.CreateItem(in.Item)
 	if status {
 		return &ls.InsertResponse{Error: "", Status: "inserted"}, nil
 	} else {
-		return &ls.InsertResponse{Error: err.Error(), Status: "error"}, nil
+		return &ls.InsertResponse{Error: err.Error(), Status: "error"}, fmt.Errorf("[db]:%v", err.Error())
 	}
 
 }
 
 func (s *Server) FindListItem(ctx context.Context, in *ls.ItemReq) (*ls.Item, error) {
 	if in.ItemName == "" {
-		return &ls.Item{}, fmt.Errorf("Not Found")
+		return &ls.Item{}, fmt.Errorf("not found")
 	}
-	for _, v := range s.list {
-		if v.Item == in.ItemName {
-			log.Println(v)
-			return &v, nil
-		}
-	}
+
 	repo := itemRepo.NewItemRepository()
 	response := repo.GetItem(in.ItemName)
-	return &ls.Item{Item: response.Name}, fmt.Errorf("Not Found")
+	return &ls.Item{Item: response.Name}, fmt.Errorf("not found")
 }
 
 func (s *Server) DeleteListItem(ctx context.Context, in *ls.ItemReq) (*ls.DeleteResponse, error) {
@@ -57,9 +51,19 @@ func (s *Server) DeleteListItem(ctx context.Context, in *ls.ItemReq) (*ls.Delete
 	}
 }
 
-// func (s *Server) GetList(*ls.Empty,) error {
-// 	return nil
-// }
+func (s *Server) GetList(in *ls.Empty, srv ls.ListService_GetListServer) error {
+	repo := itemRepo.NewItemRepository()
+	var list []models.Item
+	repo.GetList(&list)
+	log.Println(list)
+	for _, v := range list {
+		resp := ls.Item{Item: v.Name}
+		if err := srv.Send(&resp); err != nil {
+			log.Printf("send error %v", err)
+		}
+	}
+	return nil
+}
 
 func (s *Server) UpdateListItem(ctx context.Context, in *ls.UpdateReq) (*ls.Item, error) {
 	if in.ItemName == "" {
@@ -67,22 +71,12 @@ func (s *Server) UpdateListItem(ctx context.Context, in *ls.UpdateReq) (*ls.Item
 	}
 	var search ls.Item
 	log.Println("hello from upli")
-	var idx int
-	for i, v := range s.list {
-		if v.Item == in.ItemName {
-			log.Println(v)
-			search = v
-			idx = i
-		}
-	}
+
 	if search.Item != "" {
 		search.Item = in.NewName
 		newItem := ls.Item{Item: in.NewName}
-		s.list[idx] = newItem
-		log.Println(newItem)
-		log.Println(s.list)
 		return &newItem, nil
 	}
 
-	return &ls.Item{}, fmt.Errorf("Not Found")
+	return &ls.Item{}, fmt.Errorf("not found")
 }
