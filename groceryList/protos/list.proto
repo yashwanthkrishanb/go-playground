@@ -1,0 +1,38 @@
+syntax="proto3";
+
+option go_package ="./listServer/";
+
+message Item {
+    string item = 1;
+}
+message ItemReq{
+    string itemName =1;
+}
+message ItemResponse{
+    string error =1;
+    Item item =2;
+}
+message insertResponse{
+    string error =2;
+    string status =1;
+}
+message  DeleteResponse {
+    string error =2;
+    string status =1;
+}
+message UpdateReq{
+    string itemName=1;
+    string newName=2;
+}
+
+
+message Empty{
+
+}
+service ListService{
+    rpc findListItem(ItemReq) returns (Item){}
+    rpc insertListItem(Item) returns (insertResponse){} 
+    rpc deleteListItem(ItemReq) returns (DeleteResponse){}
+    // rpc getList(Empty)returns ( stream Item){}
+    rpc updateListItem(UpdateReq) returns (Item){}
+}
